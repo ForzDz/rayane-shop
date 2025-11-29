@@ -31,8 +31,8 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const availableCommunes = formData.wilaya ? communesByWilaya[formData.wilaya] : [];
 
   // Check availability
-  const cleanWilaya = formData.wilaya.replace(/^\d+-/, '');
-  const isStopDeskAvailable = deliveryRates[cleanWilaya]?.bureau !== null;
+  const cleanWilaya = formData.wilaya ? formData.wilaya.replace(/^\d+-/, '') : '';
+  const isStopDeskAvailable = cleanWilaya ? deliveryRates[cleanWilaya]?.bureau !== null : false;
   
   const deliveryPrice = getDeliveryPrice(formData.wilaya, formData.deliveryType as 'domicile' | 'stop_desk');
   const totalPrice = product.price + deliveryPrice;
@@ -104,16 +104,6 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         description: errorMessage.includes('Configuration') || errorMessage.includes('EMAIL') || errorMessage.includes('manquante')
           ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
           : errorMessage.includes('Failed to send email') || errorMessage.includes('Erreur')
-          ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
-          : "حدث خطأ. يرجى المحاولة مرة أخرى.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-          ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
-          : errorMessage.includes('Failed to send email') || errorMessage.includes('Email')
           ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
           : "حدث خطأ. يرجى المحاولة مرة أخرى.",
         variant: "destructive",

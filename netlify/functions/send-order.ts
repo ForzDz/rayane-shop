@@ -83,18 +83,18 @@ const handler: Handler = async (event) => {
                 ${produits.map((p: any) => `
                   <tr>
                     <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${p.name} ${p.quantity ? `(x${p.quantity})` : ''}</td>
-                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">${p.price} DA</td>
+                    <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">${typeof p.price === 'number' ? p.price.toLocaleString() : p.price} DA</td>
                   </tr>
                 `).join("")}
                 <tr>
                   <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Livraison</td>
-                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">${deliveryPrice} DA</td>
+                  <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">${typeof deliveryPrice === 'number' ? deliveryPrice.toLocaleString() : deliveryPrice} DA</td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr style="font-weight: bold; background-color: #f8fafc;">
                   <td style="padding: 10px; border-top: 2px solid #2563eb;">Total</td>
-                  <td style="padding: 10px; text-align: right; border-top: 2px solid #2563eb; color: #2563eb; font-size: 1.2em;">${total} DA</td>
+                  <td style="padding: 10px; text-align: right; border-top: 2px solid #2563eb; color: #2563eb; font-size: 1.2em;">${typeof total === 'number' ? total.toLocaleString() : total} DA</td>
                 </tr>
               </tfoot>
             </table>
