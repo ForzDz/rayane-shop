@@ -79,8 +79,11 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         body: JSON.stringify(orderData),
       });
 
+      const responseData = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error('Failed to send order');
+        console.error('Order error response:', response.status, responseData);
+        throw new Error(responseData.error || responseData.details || 'Failed to send order');
       }
 
       toast({
@@ -91,9 +94,14 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       navigate("/merci");
     } catch (error) {
       console.error('Order error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "خطأ",
-        description: "حدث خطأ. يرجى المحاولة مرة أخرى.",
+        description: errorMessage.includes('SENDGRID_API_KEY') 
+          ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
+          : errorMessage.includes('Failed to send email')
+          ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
+          : "حدث خطأ. يرجى المحاولة مرة أخرى.",
         variant: "destructive",
       });
     } finally {

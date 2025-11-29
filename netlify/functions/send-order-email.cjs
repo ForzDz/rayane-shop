@@ -10,6 +10,15 @@ exports.handler = async (event) => {
     }
 
     try {
+        // Check if API key is set
+        if (!process.env.SENDGRID_API_KEY) {
+            console.error('SENDGRID_API_KEY is not set');
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'Server configuration error', details: 'SENDGRID_API_KEY not configured' }),
+            };
+        }
+
         // Set API key
         sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -74,9 +83,24 @@ exports.handler = async (event) => {
         };
     } catch (error) {
         console.error('Error sending email:', error);
+        
+        // More detailed error information
+        let errorMessage = error.message || 'Unknown error';
+        let errorDetails = '';
+        
+        if (error.response) {
+            // SendGrid API error
+            errorDetails = JSON.stringify(error.response.body || error.response);
+            errorMessage = `SendGrid API error: ${errorMessage}`;
+        }
+        
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to send email', details: error.message }),
+            body: JSON.stringify({ 
+                error: 'Failed to send email', 
+                details: errorMessage,
+                fullError: errorDetails || error.toString()
+            }),
         };
     }
 };
