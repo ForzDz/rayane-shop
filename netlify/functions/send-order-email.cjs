@@ -1,8 +1,6 @@
-import sgMail from '@sendgrid/mail';
+const sgMail = require('@sendgrid/mail');
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-export const handler = async (event) => {
+exports.handler = async (event) => {
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return {
@@ -12,6 +10,9 @@ export const handler = async (event) => {
     }
 
     try {
+        // Set API key
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
         const data = JSON.parse(event.body);
 
         const {
