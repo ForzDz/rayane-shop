@@ -57,33 +57,38 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
     setLoading(true);
 
     try {
-      // Prepare order data
-      const orderData = {
-        fullName: formData.firstName,
-        phone: formData.phone,
-        wilaya: formData.wilaya,
-        commune: formData.commune,
-        deliveryType: formData.deliveryType,
-        productName: product.name,
-        productPrice: product.price,
-        deliveryPrice: deliveryPrice,
-        totalPrice: totalPrice
-      };
-
-      // Send email via Netlify Function
-      const response = await fetch('/.netlify/functions/send-order-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
+      // 1. Submit to Netlify Forms (Backup & Dashboard)
+      const formElement = e.target as HTMLFormElement;
+      const formDataNetlify = new FormData(formElement);
+      
+      await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(formDataNetlify as any).toString(),
       });
 
-      const responseData = await response.json().catch(() => ({}));
+      // 2. Send Email via Netlify Function (SendGrid)
+      const emailResponse = await fetch("/.netlify/functions/send-order-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.firstName,
+          phone: formData.phone,
+          wilaya: formData.wilaya,
+          commune: formData.commune,
+          deliveryType: formData.deliveryType,
+          productName: product.name,
+          productPrice: product.price,
+          deliveryPrice: deliveryPrice,
+          totalPrice: totalPrice
+        }),
+      });
 
-      if (!response.ok) {
-        console.error('Order error response:', response.status, responseData);
-        throw new Error(responseData.error || responseData.details || 'Failed to send order');
+      const emailData = await emailResponse.json().catch(() => ({}));
+
+      if (!emailResponse.ok) {
+        console.error("Erreur envoi email:", emailData);
+        throw new Error(emailData.error || emailData.details || "Failed to send email");
       }
 
       toast({
@@ -99,7 +104,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         title: "خطأ",
         description: errorMessage.includes('SENDGRID_API_KEY') 
           ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
-          : errorMessage.includes('Failed to send email')
+          : errorMessage.includes('Failed to send email') || errorMessage.includes('Email')
           ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
           : "حدث خطأ. يرجى المحاولة مرة أخرى.",
         variant: "destructive",
@@ -111,7 +116,22 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
 
   return (
     <div className="bg-card rounded-xl shadow-lg border p-6 md:p-8">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form 
+        onSubmit={handleSubmit} 
+        className="space-y-6"
+        name="order-form"
+        method="POST"
+        data-netlify="true"
+        data-netlify-honeypot="bot-field"
+      >
+        {/* Hidden fields for Netlify */}
+        <input type="hidden" name="form-name" value="order-form" />
+        <input type="hidden" name="bot-field" />
+        <input type="hidden" name="product-name" value={product.name} />
+        <input type="hidden" name="product-price" value={product.price} />
+        <input type="hidden" name="delivery-price" value={deliveryPrice} />
+        <input type="hidden" name="total-price" value={totalPrice} />
+        
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="fullName" className="flex items-center gap-2">
@@ -120,6 +140,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
             </Label>
             <Input 
               id="fullName"
+              name="fullName"
               required 
               placeholder="اسمك الكامل"
               value={formData.firstName}
@@ -134,6 +155,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
             </Label>
             <Input 
               id="phone"
+              name="phone"
               required 
               type="tel" 
               placeholder="05 XX XX XX XX"
@@ -149,6 +171,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
                 الولاية
               </Label>
               <Select 
+                name="wilaya"
                 value={formData.wilaya} 
                 onValueChange={handleWilayaChange}
                 required
@@ -170,6 +193,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
                 البلدية
               </Label>
               <Select 
+                name="commune"
                 value={formData.commune} 
                 onValueChange={(v) => setFormData({...formData, commune: v})}
                 disabled={!formData.wilaya}
@@ -190,6 +214,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
 
         <div className="space-y-3">
           <Label>طريقة التوصيل</Label>
+          <input type="hidden" name="deliveryType" value={formData.deliveryType} />
           <div className="grid grid-cols-2 gap-4">
             <div 
               className={`border rounded-lg py-2 px-1 cursor-pointer transition-all ${formData.deliveryType === 'domicile' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-primary/50'}`}

@@ -45,17 +45,16 @@ exports.handler = async (event) => {
 
         const data = JSON.parse(event.body);
 
-        const {
-            fullName,
-            phone,
-            wilaya,
-            commune,
-            deliveryType,
-            productName,
-            productPrice,
-            deliveryPrice,
-            totalPrice
-        } = data;
+        // Support both formats (old and new)
+        const fullName = data.fullName || data.nom;
+        const phone = data.phone || data.telephone;
+        const wilaya = data.wilaya;
+        const commune = data.commune;
+        const deliveryType = data.deliveryType;
+        const productName = data.productName || (data.produits && data.produits[0]?.name) || 'Produit';
+        const productPrice = data.productPrice || (data.produits && data.produits[0]?.price) || 0;
+        const deliveryPrice = data.deliveryPrice || 0;
+        const totalPrice = data.totalPrice || data.total || (productPrice + deliveryPrice);
 
         // Email to the shop owner
         const msg = {
@@ -70,7 +69,7 @@ exports.handler = async (event) => {
             <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h3 style="color: #334155; margin-top: 0;">👤 Informations Client</h3>
               <p style="margin: 8px 0;"><strong>Nom complet:</strong> ${fullName}</p>
-              <p style="margin: 8px 0;"><strong>Téléphone:</strong> ${phone}</p>
+              <p style="margin: 8px 0;"><strong>Téléphone:</strong> <a href="tel:${phone}">${phone}</a></p>
               <p style="margin: 8px 0;"><strong>Wilaya:</strong> ${wilaya}</p>
               <p style="margin: 8px 0;"><strong>Commune:</strong> ${commune}</p>
               <p style="margin: 8px 0;"><strong>Mode de livraison:</strong> ${deliveryType === 'domicile' ? '🏠 À domicile' : '📦 Stop Desk'}</p>
@@ -97,13 +96,6 @@ exports.handler = async (event) => {
         };
 
         console.log('Attempting to send email to:', msg.to);
-        console.log('From email:', msg.from);
-        
-        // Validate email format
-        if (!msg.to || !msg.from) {
-            throw new Error('Email addresses are required');
-        }
-        
         const result = await sgMail.send(msg);
         console.log('Email sent successfully:', result);
 
@@ -119,42 +111,23 @@ exports.handler = async (event) => {
         // More detailed error information
         let errorMessage = error.message || 'Unknown error';
         let errorDetails = '';
-        let statusCode = 500;
         
         if (error.response) {
             // SendGrid API error
-            const responseBody = error.response.body || {};
-            errorDetails = JSON.stringify(responseBody);
-            errorMessage = responseBody.errors ? 
-                responseBody.errors.map(e => e.message).join(', ') : 
-                errorMessage;
-            
-            console.error('SendGrid response status:', error.response.statusCode);
-            console.error('SendGrid response body:', responseBody);
-            
-            // Common SendGrid errors
-            if (error.response.statusCode === 401) {
-                errorMessage = 'Invalid API key. Please check your SendGrid API key.';
-            } else if (error.response.statusCode === 403) {
-                errorMessage = 'Sender email not verified. Please verify yacinemed2020@gmail.com in SendGrid.';
-            } else if (error.response.statusCode === 400) {
-                errorMessage = 'Invalid email format or missing required fields.';
-            }
-            
-            statusCode = error.response.statusCode || 500;
-        } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-            errorMessage = 'Network error. Please check your internet connection.';
+            errorDetails = JSON.stringify(error.response.body || error.response);
+            errorMessage = `SendGrid API error: ${errorMessage}`;
+            console.error('SendGrid response:', error.response.body);
         }
         
         return {
-            statusCode: statusCode,
+            statusCode: 500,
             headers,
             body: JSON.stringify({ 
                 error: 'Failed to send email', 
                 details: errorMessage,
-                fullError: errorDetails || error.toString(),
-                code: error.code || 'UNKNOWN'
+                fullError: errorDetails || error.toString()
             }),
         };
     }
 };
+
