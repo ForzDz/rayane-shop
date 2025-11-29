@@ -1,10 +1,28 @@
 const sgMail = require('@sendgrid/mail');
 
+// CORS headers
+const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+};
+
 exports.handler = async (event) => {
+    // Handle CORS preflight
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: '',
+        };
+    }
+
     // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
+            headers,
             body: JSON.stringify({ error: 'Method not allowed' }),
         };
     }
@@ -15,9 +33,12 @@ exports.handler = async (event) => {
             console.error('SENDGRID_API_KEY is not set');
             return {
                 statusCode: 500,
+                headers,
                 body: JSON.stringify({ error: 'Server configuration error', details: 'SENDGRID_API_KEY not configured' }),
             };
         }
+
+        console.log('SENDGRID_API_KEY is set:', process.env.SENDGRID_API_KEY ? 'Yes' : 'No');
 
         // Set API key
         sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -75,14 +96,18 @@ exports.handler = async (event) => {
       `,
         };
 
-        await sgMail.send(msg);
+        console.log('Attempting to send email to:', msg.to);
+        const result = await sgMail.send(msg);
+        console.log('Email sent successfully:', result);
 
         return {
             statusCode: 200,
+            headers,
             body: JSON.stringify({ message: 'Email sent successfully' }),
         };
     } catch (error) {
         console.error('Error sending email:', error);
+        console.error('Error stack:', error.stack);
         
         // More detailed error information
         let errorMessage = error.message || 'Unknown error';
@@ -92,10 +117,12 @@ exports.handler = async (event) => {
             // SendGrid API error
             errorDetails = JSON.stringify(error.response.body || error.response);
             errorMessage = `SendGrid API error: ${errorMessage}`;
+            console.error('SendGrid response:', error.response.body);
         }
         
         return {
             statusCode: 500,
+            headers,
             body: JSON.stringify({ 
                 error: 'Failed to send email', 
                 details: errorMessage,
