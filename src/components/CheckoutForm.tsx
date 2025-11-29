@@ -67,20 +67,19 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         body: new URLSearchParams(formDataNetlify as any).toString(),
       });
 
-      // 2. Send Email via Netlify Function (SendGrid)
-      const emailResponse = await fetch("/.netlify/functions/send-order-email", {
+      // 2. Send Email via Netlify Function (Gmail/Nodemailer)
+      const emailResponse = await fetch("/.netlify/functions/send-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName: formData.firstName,
-          phone: formData.phone,
+          nom: formData.firstName,
+          telephone: formData.phone,
           wilaya: formData.wilaya,
           commune: formData.commune,
           deliveryType: formData.deliveryType,
-          productName: product.name,
-          productPrice: product.price,
           deliveryPrice: deliveryPrice,
-          totalPrice: totalPrice
+          produits: [{ name: product.name, price: product.price, quantity: 1 }],
+          total: totalPrice
         }),
       });
 
@@ -88,7 +87,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
 
       if (!emailResponse.ok) {
         console.error("Erreur envoi email:", emailData);
-        throw new Error(emailData.error || emailData.details || "Failed to send email");
+        throw new Error(emailData.message || emailData.error || "Failed to send email");
       }
 
       toast({
@@ -102,7 +101,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "خطأ",
-        description: errorMessage.includes('SENDGRID_API_KEY') 
+        description: errorMessage.includes('Configuration') || errorMessage.includes('EMAIL')
           ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
           : errorMessage.includes('Failed to send email') || errorMessage.includes('Email')
           ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."

@@ -10,6 +10,15 @@ const handler: Handler = async (event) => {
     const data = JSON.parse(event.body || "{}");
     const { nom, telephone, wilaya, commune, produits, total, deliveryType, deliveryPrice } = data;
 
+    // Vérifier les variables d'environnement
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error("EMAIL_USER or EMAIL_PASS not configured");
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ message: "Configuration email manquante" }),
+      };
+    }
+
     // Configuration du transporteur (Gmail)
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -26,14 +35,14 @@ const handler: Handler = async (event) => {
       subject: `🛍️ Nouvelle Commande de ${nom}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <h1 style="color: #2563eb; text-align: center;">Nouvelle Commande !</h1>
+          <h1 style="color: #2563eb; text-align: center;">📦 Nouvelle Commande !</h1>
           
           <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #1e293b;">👤 Informations Client</h3>
             <p><strong>Nom:</strong> ${nom}</p>
             <p><strong>Téléphone:</strong> <a href="tel:${telephone}">${telephone}</a></p>
             <p><strong>Adresse:</strong> ${commune}, ${wilaya}</p>
-            <p><strong>Livraison:</strong> ${deliveryType === 'domicile' ? 'À Domicile' : 'Stop Desk (Bureau)'}</p>
+            <p><strong>Livraison:</strong> ${deliveryType === 'domicile' ? '🏠 À Domicile' : '📦 Stop Desk (Bureau)'}</p>
           </div>
           
           <div style="margin-bottom: 20px;">
@@ -48,7 +57,7 @@ const handler: Handler = async (event) => {
               <tbody>
                 ${produits.map((p: any) => `
                   <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${p.name}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${p.name} ${p.quantity ? `(x${p.quantity})` : ''}</td>
                     <td style="padding: 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">${p.price} DA</td>
                   </tr>
                 `).join("")}
@@ -64,6 +73,10 @@ const handler: Handler = async (event) => {
                 </tr>
               </tfoot>
             </table>
+          </div>
+          
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin-top: 20px;">
+            <p style="margin: 0; color: #92400e;">⚡ <strong>Action requise:</strong> Contactez le client au ${telephone} pour confirmer la commande.</p>
           </div>
           
           <div style="text-align: center; color: #64748b; font-size: 0.8em; margin-top: 30px;">
@@ -83,9 +96,13 @@ const handler: Handler = async (event) => {
     console.error("Erreur d'envoi:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Erreur lors de l'envoi de l'email" }),
+      body: JSON.stringify({ 
+        message: "Erreur lors de l'envoi de l'email",
+        error: error instanceof Error ? error.message : String(error)
+      }),
     };
   }
 };
 
 export { handler };
+
