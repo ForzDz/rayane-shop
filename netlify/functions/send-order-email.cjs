@@ -97,6 +97,13 @@ exports.handler = async (event) => {
         };
 
         console.log('Attempting to send email to:', msg.to);
+        console.log('From email:', msg.from);
+        
+        // Validate email format
+        if (!msg.to || !msg.from) {
+            throw new Error('Email addresses are required');
+        }
+        
         const result = await sgMail.send(msg);
         console.log('Email sent successfully:', result);
 
@@ -112,21 +119,41 @@ exports.handler = async (event) => {
         // More detailed error information
         let errorMessage = error.message || 'Unknown error';
         let errorDetails = '';
+        let statusCode = 500;
         
         if (error.response) {
             // SendGrid API error
-            errorDetails = JSON.stringify(error.response.body || error.response);
-            errorMessage = `SendGrid API error: ${errorMessage}`;
-            console.error('SendGrid response:', error.response.body);
+            const responseBody = error.response.body || {};
+            errorDetails = JSON.stringify(responseBody);
+            errorMessage = responseBody.errors ? 
+                responseBody.errors.map(e => e.message).join(', ') : 
+                errorMessage;
+            
+            console.error('SendGrid response status:', error.response.statusCode);
+            console.error('SendGrid response body:', responseBody);
+            
+            // Common SendGrid errors
+            if (error.response.statusCode === 401) {
+                errorMessage = 'Invalid API key. Please check your SendGrid API key.';
+            } else if (error.response.statusCode === 403) {
+                errorMessage = 'Sender email not verified. Please verify yacinemed2020@gmail.com in SendGrid.';
+            } else if (error.response.statusCode === 400) {
+                errorMessage = 'Invalid email format or missing required fields.';
+            }
+            
+            statusCode = error.response.statusCode || 500;
+        } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+            errorMessage = 'Network error. Please check your internet connection.';
         }
         
         return {
-            statusCode: 500,
+            statusCode: statusCode,
             headers,
             body: JSON.stringify({ 
                 error: 'Failed to send email', 
                 details: errorMessage,
-                fullError: errorDetails || error.toString()
+                fullError: errorDetails || error.toString(),
+                code: error.code || 'UNKNOWN'
             }),
         };
     }
