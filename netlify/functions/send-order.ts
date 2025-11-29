@@ -1,9 +1,30 @@
 import type { Handler } from "@netlify/functions";
 import nodemailer from "nodemailer";
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
 const handler: Handler = async (event) => {
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: '',
+    };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: "Method Not Allowed" };
+    return { 
+      statusCode: 405, 
+      headers: corsHeaders,
+      body: JSON.stringify({ error: "Method Not Allowed" })
+    };
   }
 
   try {
@@ -15,7 +36,11 @@ const handler: Handler = async (event) => {
       console.error("EMAIL_USER or EMAIL_PASS not configured");
       return {
         statusCode: 500,
-        body: JSON.stringify({ message: "Configuration email manquante" }),
+        headers: corsHeaders,
+        body: JSON.stringify({ 
+          message: "Configuration email manquante",
+          error: "EMAIL_USER or EMAIL_PASS not configured"
+        }),
       };
     }
 
@@ -86,16 +111,21 @@ const handler: Handler = async (event) => {
       `,
     };
 
+    console.log('Attempting to send email to:', mailOptions.to);
     await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully');
 
     return {
       statusCode: 200,
+      headers: corsHeaders,
       body: JSON.stringify({ message: "Email envoyé avec succès !" }),
     };
   } catch (error) {
     console.error("Erreur d'envoi:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : '');
     return {
       statusCode: 500,
+      headers: corsHeaders,
       body: JSON.stringify({ 
         message: "Erreur lors de l'envoi de l'email",
         error: error instanceof Error ? error.message : String(error)

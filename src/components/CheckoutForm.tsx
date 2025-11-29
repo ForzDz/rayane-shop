@@ -101,7 +101,17 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "خطأ",
-        description: errorMessage.includes('Configuration') || errorMessage.includes('EMAIL')
+        description: errorMessage.includes('Configuration') || errorMessage.includes('EMAIL') || errorMessage.includes('manquante')
+          ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
+          : errorMessage.includes('Failed to send email') || errorMessage.includes('Erreur')
+          ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
+          : "حدث خطأ. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
           ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
           : errorMessage.includes('Failed to send email') || errorMessage.includes('Email')
           ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
