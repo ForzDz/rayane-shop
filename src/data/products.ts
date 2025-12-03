@@ -3,6 +3,7 @@ import productImage1 from "@/assets/1.jpg";
 import productImage2 from "@/assets/product-secret-lift-2.jpg";
 import productImage3 from "@/assets/product-secret-lift-3.png";
 import beforeAfter from "@/assets/product-before-after.jpeg";
+import ProductImageNew from "@/assets/2.jpg";
 
 export const categories: Category[] = [
   { id: "1", name: "الجمال والعناية", slug: "beaute-soins", icon: "Sparkles", image: productImage1 },
@@ -14,7 +15,7 @@ export const categories: Category[] = [
 export const products: Product[] = [
   {
     id: "1",
-    name: "لاصقات سحب الوجه",
+    name: "لاصقات الوجه الأصلية للتجاعيد",
     slug: "secret-lift-instant-face-lift",
     category: "الجمال والعناية",
     price: 1900,
@@ -29,7 +30,7 @@ export const products: Product[] = [
       "مناسب لجميع أنواع البشرة"
     ],
 
-    images: [productImage1, productImage2],
+    images: [productImage1, productImage2, ProductImageNew],
     inStock: true,
     badge: "الأكثر مبيعًا",
     rating: 4.8,

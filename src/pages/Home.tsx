@@ -1,13 +1,46 @@
 import { useState } from "react";
 import { products } from "@/data/products";
 import { CheckoutForm } from "@/components/CheckoutForm";
+import { CustomerReviews } from "@/components/CustomerReviews";
+import { TestimonialsDemo } from "@/components/TestimonialsDemo";
 import { Badge } from "@/components/ui/badge";
-import { Star, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Check, ChevronLeft, ChevronRight, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Home = () => {
   const product = products[0]; // Secret Lift
   const [selectedImage, setSelectedImage] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Minimum swipe distance (in px)
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null); // Reset touch end
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      // Swipe Left -> Next Image
+      nextImage();
+    }
+    if (isRightSwipe) {
+      // Swipe Right -> Previous Image
+      prevImage();
+    }
+  };
 
   if (!product) return <div>جاري التحميل...</div>;
 
@@ -26,6 +59,10 @@ const Home = () => {
         <div className="mb-8 text-center lg:text-left">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 leading-tight">
             {product.name}
+            <span className="inline-flex items-center gap-2 mr-3 align-middle">
+              <span className="text-2xl font-bold text-black">+ مع هدية</span>
+              <Gift className="h-7 w-7 text-primary animate-bounce" />
+            </span>
           </h1>
           
           
@@ -45,11 +82,20 @@ const Home = () => {
           {/* Left Column: Product Images & Details */}
           <div className="space-y-8">
             {/* Images Carousel */}
-            <div className="relative aspect-square bg-accent rounded-2xl overflow-hidden shadow-sm group">
+            <div 
+              className="relative aspect-square bg-accent rounded-2xl overflow-hidden shadow-sm group touch-pan-y"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
               <img
                 src={product.images[selectedImage]}
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-500"
+                width="600"
+                height="600"
+                fetchPriority={selectedImage === 0 ? "high" : "auto"}
+                loading={selectedImage === 0 ? "eager" : "lazy"}
               />
               {product.badge && (
                 <Badge className="absolute top-4 right-4 text-lg px-4 py-1 z-10" variant="destructive">
@@ -61,19 +107,21 @@ const Home = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute left-0 top-1/2 -translate-y-1/2 text-primary hover:bg-transparent hover:text-primary/80 h-12 w-12"
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-primary bg-white/20 hover:bg-white/40 backdrop-blur-sm h-12 w-12 rounded-full animate-bounce-left z-10"
                 onClick={prevImage}
+                aria-label="Previous image"
               >
-                <ChevronLeft className="h-10 w-10" />
+                <ChevronLeft className="h-8 w-8" />
               </Button>
               
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-0 top-1/2 -translate-y-1/2 text-primary hover:bg-transparent hover:text-primary/80 h-12 w-12"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-primary bg-white/20 hover:bg-white/40 backdrop-blur-sm h-12 w-12 rounded-full animate-bounce-right z-10"
                 onClick={nextImage}
+                aria-label="Next image"
               >
-                <ChevronRight className="h-10 w-10" />
+                <ChevronRight className="h-8 w-8" />
               </Button>
 
               {/* Dots Indicator */}
@@ -85,6 +133,8 @@ const Home = () => {
                     className={`w-2 h-2 rounded-full transition-all ${
                       selectedImage === index ? "bg-primary w-4" : "bg-white/60 hover:bg-white"
                     }`}
+                    aria-label={`View image ${index + 1}`}
+                    aria-current={selectedImage === index ? "true" : "false"}
                   />
                 ))}
               </div>
@@ -116,16 +166,23 @@ const Home = () => {
           <div className="space-y-8">
             <div>
 
-              <div className="flex items-baseline gap-4 mb-8">
+              <div className="flex flex-wrap items-baseline gap-4 mb-6">
                 <span className="text-5xl font-bold text-primary">
                   {product.price.toLocaleString()} DA
                 </span>
                 {product.originalPrice && (
-                  <span className="text-2xl text-muted-foreground line-through decoration-2 decoration-destructive/50">
-                    {product.originalPrice.toLocaleString()} DA
-                  </span>
+                  <>
+                    <span className="text-2xl text-muted-foreground line-through decoration-2 decoration-destructive/50">
+                      {product.originalPrice.toLocaleString()} DA
+                    </span>
+                    <Badge variant="destructive" className="text-lg px-3 py-1 animate-pulse">
+                      تخفيض {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
+                    </Badge>
+                  </>
                 )}
               </div>
+
+
 
               {/* Checkout Form */}
               <div id="order-form" className="scroll-mt-24">
@@ -152,6 +209,12 @@ const Home = () => {
           </div>
         </div>
       </div>
+      
+      {/* Testimonials Section */}
+      <TestimonialsDemo />
+      
+      {/* Customer Reviews Images */}
+      <CustomerReviews />
     </div>
   );
 };

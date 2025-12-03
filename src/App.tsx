@@ -18,9 +18,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <a href="#main-content" className="skip-link">
+            تجاوز إلى المحتوى الرئيسي
+          </a>
           <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-1">
+            <main id="main-content" className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/contact" element={<Contact />} />

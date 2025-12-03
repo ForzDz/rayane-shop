@@ -144,13 +144,15 @@ const Contact = () => {
       icon: MessageCircle,
       title: "WhatsApp",
       content: "0556482798",
-      description: "رد سريع 24/7"
+      description: "رد سريع 24/7",
+      link: "https://wa.me/213556482798"
     },
     {
       icon: Mail,
       title: "Email",
       content: "yacinemed2020@gmail.com",
-      description: "الرد خلال 24 ساعة"
+      description: "الرد خلال 24 ساعة",
+      link: "mailto:yacinemed2020@gmail.com"
     }
   ];
 
@@ -273,7 +275,13 @@ const Contact = () => {
           {/* Contact Info Cards */}
           <div className="lg:col-span-1 space-y-4">
             {contactInfo.map((info, index) => (
-              <div key={index} className="bg-card rounded-lg shadow-sm p-6">
+              <a 
+                key={index} 
+                href={info.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-card rounded-lg shadow-sm p-6 block hover:shadow-md transition-shadow"
+              >
                 <div className="flex items-start gap-4">
                   <div className="bg-primary/10 p-3 rounded-lg">
                     <info.icon className="h-6 w-6 text-primary" />
@@ -284,7 +292,7 @@ const Contact = () => {
                     <p className="text-sm text-muted-foreground mt-1">{info.description}</p>
                   </div>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
@@ -300,7 +308,7 @@ const Contact = () => {
                 ما هي مدة التوصيل؟
               </h3>
               <p className="text-muted-foreground text-sm">
-                يستغرق التوصيل عادة من 2 إلى 5 أيام عمل حسب ولايتك.
+                يستغرق التوصيل عادة من يوم إلى 3 أيام عمل حسب ولايتك.
               </p>
             </div>
             <div>
@@ -308,7 +316,7 @@ const Contact = () => {
                 هل يمكنني إرجاع المنتج؟
               </h3>
               <p className="text-muted-foreground text-sm">
-                نعم، لديك 14 يومًا لإرجاع منتج غير مستخدم.
+                نعم، لديك 4 يومًا لإرجاع منتج غير مستخدم.
               </p>
             </div>
             <div>
@@ -324,7 +332,7 @@ const Contact = () => {
                 ما هي طرق الدفع؟
               </h3>
               <p className="text-muted-foreground text-sm">
-                نقبل الدفع عند الاستلام وCIB وPaysera.
+                نحن نقبل الدفع نقدًا فقط عند التسليم.
               </p>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Truck, ShieldCheck, Banknote, Home, Building2, User, Phone, MapPin } from "lucide-react";
+import { Truck, ShieldCheck, Banknote, Home, Building2, User, Phone, MapPin, Plus, Minus } from "lucide-react";
 import { communesByWilaya } from "@/data/communes";
 import { getDeliveryPrice, deliveryRates } from "@/data/deliveryRates";
 
@@ -18,6 +18,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -32,10 +33,14 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
 
   // Check availability
   const cleanWilaya = formData.wilaya ? formData.wilaya.replace(/^\d+-/, '') : '';
-  const isStopDeskAvailable = cleanWilaya ? deliveryRates[cleanWilaya]?.bureau !== null : false;
+  // Stop Desk is only available if:
+  // 1. Wilaya has bureau delivery in deliveryRates
+  // 2. No commune is selected yet (when commune is selected, only home delivery is available)
+  const isStopDeskAvailable = cleanWilaya && !formData.commune ? deliveryRates[cleanWilaya]?.bureau !== null : false;
   
   const deliveryPrice = getDeliveryPrice(formData.wilaya, formData.deliveryType as 'domicile' | 'stop_desk');
-  const totalPrice = product.price + deliveryPrice;
+  const productTotal = product.price * quantity;
+  const totalPrice = productTotal + deliveryPrice;
 
   // Auto-switch to domicile if stop desk is not available
   useEffect(() => {
@@ -78,7 +83,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
           commune: formData.commune,
           deliveryType: formData.deliveryType,
           deliveryPrice: deliveryPrice,
-          produits: [{ name: product.name, price: product.price, quantity: 1 }],
+          produits: [{ name: product.name, price: product.price, quantity: quantity }],
           total: totalPrice
         }),
       });
@@ -158,8 +163,14 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
               required 
               type="tel" 
               placeholder="05 XX XX XX XX"
+              pattern="^(05|06|07)[0-9]{8}$"
+              title="رقم الهاتف يجب أن يبدأ بـ 05 أو 06 أو 07 ويحتوي على 10 أرقام فقط"
+              maxLength={10}
               value={formData.phone}
-              onChange={e => setFormData({...formData, phone: e.target.value})}
+              onChange={e => {
+                const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                setFormData({...formData, phone: value});
+              }}
             />
           </div>
 
@@ -236,20 +247,57 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
               onClick={() => isStopDeskAvailable && setFormData({...formData, deliveryType: 'stop_desk'})}
             >
               <div className="flex flex-col items-center text-center gap-1">
-                <Building2 className={`h-5 w-5 ${!isStopDeskAvailable ? 'text-muted-foreground' : formData.deliveryType === 'stop_desk' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Truck className={`h-5 w-5 ${!isStopDeskAvailable ? 'text-muted-foreground' : formData.deliveryType === 'stop_desk' ? 'text-primary' : 'text-muted-foreground'}`} />
                 <span className="text-xs font-medium">
-                  {isStopDeskAvailable ? "Stop Desk (ZR Express)" : "غير متوفر"}
+                  {isStopDeskAvailable ? "مكتب (ZR Express)" : "غير متوفر"}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="address" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            العنوان
+          </Label>
+          <Input 
+            id="address"
+            name="address"
+            required 
+            placeholder="أدخل عنوانك الكامل"
+          />
+        </div>
+
+        <div className="flex items-center justify-start bg-background rounded-md border h-12 px-3 gap-4">
+          <Label className="text-sm font-medium">الكمية</Label>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              className="h-full px-3 text-xl font-normal hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={quantity <= 1}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <span className="text-lg font-bold min-w-[2rem] text-center tabular-nums">{quantity}</span>
+            <button
+              type="button"
+              className="h-full px-3 text-xl font-normal hover:text-primary transition-colors flex items-center justify-center"
+              onClick={() => setQuantity(quantity + 1)}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
         <div className="pt-4 border-t space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">سعر المنتج</span>
-              <span className="font-medium">{product.price.toLocaleString()} DA</span>
+              <span className="text-muted-foreground">سعر المنتج (x{quantity})</span>
+              <span className="font-medium">{productTotal.toLocaleString()} DA</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">التوصيل</span>
