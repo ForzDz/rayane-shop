@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { OrderNowButton } from "@/components/OrderNowButton";
 import Home from "./pages/Home";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
@@ -33,6 +35,8 @@ const App = () => (
             </main>
             <Footer />
           </div>
+          <WhatsAppButton />
+          <OrderNowButton />
         </BrowserRouter>
       </TooltipProvider>
   </QueryClientProvider>

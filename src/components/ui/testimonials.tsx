@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Instagram } from "lucide-react"
+import { StarRating } from "@/components/ui/star-rating"
 
 interface Testimonial {
   image: string
@@ -48,6 +49,20 @@ export function Testimonials({
               </span>
             ))}
           </p>
+          <div className="flex justify-center mt-4">
+            <StarRating 
+              ratingScale={5} 
+              value={4.5} 
+              readonly 
+              size="lg" 
+              className="text-yellow-400 fill-yellow-400 !size-8" 
+              style={{ 
+                filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4))',
+                stroke: '#000',
+                strokeWidth: '1.5px'
+              }}
+            />
+          </div>
         </div>
       </div>
 

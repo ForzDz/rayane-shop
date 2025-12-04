@@ -34,7 +34,7 @@ export const products: Product[] = [
     inStock: true,
     badge: "الأكثر مبيعًا",
     rating: 4.8,
-    reviews: 950
+    reviews: 1950
   },
   {
     id: "2",

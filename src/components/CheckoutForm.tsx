@@ -35,8 +35,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const cleanWilaya = formData.wilaya ? formData.wilaya.replace(/^\d+-/, '') : '';
   // Stop Desk is only available if:
   // 1. Wilaya has bureau delivery in deliveryRates
-  // 2. No commune is selected yet (when commune is selected, only home delivery is available)
-  const isStopDeskAvailable = cleanWilaya && !formData.commune ? deliveryRates[cleanWilaya]?.bureau !== null : false;
+  const isStopDeskAvailable = cleanWilaya ? deliveryRates[cleanWilaya]?.bureau !== null : false;
   
   const deliveryPrice = getDeliveryPrice(formData.wilaya, formData.deliveryType as 'domicile' | 'stop_desk');
   const productTotal = product.price * quantity;
@@ -48,6 +47,8 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       setFormData(prev => ({ ...prev, deliveryType: 'domicile' }));
     }
   }, [formData.wilaya, isStopDeskAvailable, formData.deliveryType]);
+
+
 
   const handleWilayaChange = (value: string) => {
     setFormData(prev => ({
@@ -206,8 +207,8 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
                 name="commune"
                 value={formData.commune} 
                 onValueChange={(v) => setFormData({...formData, commune: v})}
-                disabled={!formData.wilaya}
-                required
+                disabled={!formData.wilaya || formData.deliveryType === 'stop_desk'}
+                required={formData.deliveryType !== 'stop_desk'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="البلدية" />
@@ -220,6 +221,20 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
               </Select>
             </div>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            العنوان
+          </Label>
+          <Input 
+            id="address"
+            name="address"
+            required={formData.deliveryType !== 'stop_desk'}
+            disabled={formData.deliveryType === 'stop_desk'}
+            placeholder="أدخل عنوانك الكامل"
+          />
         </div>
 
         <div className="space-y-3">
@@ -244,30 +259,23 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
                     ? 'border-primary bg-primary/5 ring-1 ring-primary cursor-pointer' 
                     : 'hover:border-primary/50 cursor-pointer'
               }`}
-              onClick={() => isStopDeskAvailable && setFormData({...formData, deliveryType: 'stop_desk'})}
+              onClick={() => {
+                if (isStopDeskAvailable) {
+                  setFormData({...formData, deliveryType: 'stop_desk', commune: ''});
+                }
+              }}
             >
               <div className="flex flex-col items-center text-center gap-1">
                 <Truck className={`h-5 w-5 ${!isStopDeskAvailable ? 'text-muted-foreground' : formData.deliveryType === 'stop_desk' ? 'text-primary' : 'text-muted-foreground'}`} />
                 <span className="text-xs font-medium">
-                  {isStopDeskAvailable ? "مكتب (ZR Express)" : "غير متوفر"}
+                  {isStopDeskAvailable ? "الى مكتب (ZR Express)" : "غير متوفر"}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="address" className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
-            العنوان
-          </Label>
-          <Input 
-            id="address"
-            name="address"
-            required 
-            placeholder="أدخل عنوانك الكامل"
-          />
-        </div>
+
 
         <div className="flex items-center justify-start bg-background rounded-md border h-12 px-3 gap-4">
           <Label className="text-sm font-medium">الكمية</Label>
@@ -293,7 +301,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
           </div>
         </div>
 
-        <div className="pt-4 border-t space-y-4">
+        <div className="pt-4 space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">سعر المنتج (x{quantity})</span>

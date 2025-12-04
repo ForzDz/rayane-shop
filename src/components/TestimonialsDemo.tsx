@@ -37,7 +37,7 @@ export function TestimonialsDemo() {
       <Testimonials 
         testimonials={testimonials} 
         title="بعض أراء الزبائن"
-        description="نفتخر بثقة أكثر من 10,000 زبون في الجزائر"
+        description="نفتخر بثقة أكثر من 1900 زبون في الجزائر"
         maxDisplayed={3}
       />
     </div>
