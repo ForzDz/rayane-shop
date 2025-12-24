@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { Truck, ShieldCheck, Banknote, Home, Building2, User, Phone, MapPin, Plus, Minus } from "lucide-react";
 import { communesByWilaya } from "@/data/communes";
 import { getDeliveryPrice, deliveryRates } from "@/data/deliveryRates";
+import { zrExpressService, type CommandeData } from "@/services/zrexpress.service";
 
 interface CheckoutFormProps {
   product: Product;
@@ -63,42 +64,47 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
     setLoading(true);
 
     try {
-      // 1. Submit to Netlify Forms (Backup & Dashboard)
+      // 1. Submit to Netlify Forms (Backup & Dashboard - Optional, kept for data safety)
       const formElement = e.target as HTMLFormElement;
       const formDataNetlify = new FormData(formElement);
       
-      await fetch("/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams(formDataNetlify as any).toString(),
-      });
+      try {
+        await fetch("/", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(formDataNetlify as any).toString(),
+        });
+      } catch (err) {
+        console.warn("Netlify form submission failed, continuing to ZRExpress...");
+      }
 
-      // 2. Send Email via Netlify Function (Gmail/Nodemailer)
-      const emailResponse = await fetch("/.netlify/functions/send-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nom: formData.firstName,
-          telephone: formData.phone,
-          wilaya: formData.wilaya,
-          commune: formData.commune,
-          deliveryType: formData.deliveryType,
-          deliveryPrice: deliveryPrice,
-          produits: [{ name: product.name, price: product.price, quantity: quantity }],
-          total: totalPrice
-        }),
-      });
+      // 2. Send Order to ZRExpress (Directly replacing Email)
+      const commandeData: CommandeData = {
+        nomClient: formData.firstName,
+        telephone: formData.phone,
+        adresse: formData.deliveryType === 'stop_desk' ? `Bureau ZR Express - ${formData.wilaya}` : (document.getElementById('address') as HTMLInputElement)?.value || '',
+        wilaya: formData.wilaya,
+        commune: formData.commune || '',
+        produit: product.name,
+        quantite: quantity,
+        prix: product.price,
+        deliveryType: formData.deliveryType,
+        deliveryPrice: deliveryPrice,
+        totalPrice: totalPrice
+      };
 
-      const emailData = await emailResponse.json().catch(() => ({}));
+      // NOTE: Using Make.com method as requested.
+      // const response = await zrExpressService.envoyerCommandeViaBackend(commandeData);
+      const response = await zrExpressService.envoyerCommandeViaMake(commandeData);
 
-      if (!emailResponse.ok) {
-        console.error("Erreur envoi email:", emailData);
-        throw new Error(emailData.message || emailData.error || "Failed to send email");
+      if (!response.success) {
+        console.error("Erreur ZRExpress:", response.error);
+        throw new Error(response.error || "Failed to send to ZRExpress");
       }
 
       toast({
         title: "تم تأكيد الطلب!",
-        description: "شكرًا على طلبك. سنتصل بك قريبًا.",
+        description: "شكرًا على طلبك. تم إرسال الطلب بنجاح.",
       });
 
       navigate("/merci");
@@ -107,11 +113,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "خطأ",
-        description: errorMessage.includes('Configuration') || errorMessage.includes('EMAIL') || errorMessage.includes('manquante')
-          ? "خطأ في الإعدادات. يرجى التحقق من إعدادات الخادم."
-          : errorMessage.includes('Failed to send email') || errorMessage.includes('Erreur')
-          ? "فشل إرسال البريد الإلكتروني. يرجى المحاولة مرة أخرى."
-          : "حدث خطأ. يرجى المحاولة مرة أخرى.",
+        description: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.",
         variant: "destructive",
       });
     } finally {
