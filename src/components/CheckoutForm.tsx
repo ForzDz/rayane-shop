@@ -9,7 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { Truck, ShieldCheck, Banknote, Home, Building2, User, Phone, MapPin, Plus, Minus } from "lucide-react";
 import { communesByWilaya } from "@/data/communes";
 import { getDeliveryPrice, deliveryRates } from "@/data/deliveryRates";
-import { zrExpressService, type CommandeData } from "@/services/zrexpress.service";
+import { googleSheetsService } from "@/services/googlesheets.service";
+import type { CommandeData } from "@/types/zrexpress.types"; // On garde le type CommandeData qui est compatible
 
 interface CheckoutFormProps {
   product: Product;
@@ -75,10 +76,10 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
           body: new URLSearchParams(formDataNetlify as any).toString(),
         });
       } catch (err) {
-        console.warn("Netlify form submission failed, continuing to ZRExpress...");
+        console.warn("Netlify form submission failed, continuing to Google Sheets...");
       }
 
-      // 2. Send Order to ZRExpress (Directly replacing Email)
+      // 2. Send Order to Google Sheets via Make.com
       const commandeData: CommandeData = {
         nomClient: formData.firstName,
         telephone: formData.phone,
@@ -93,14 +94,16 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         totalPrice: totalPrice
       };
 
-      // NOTE: Using Make.com method as requested.
-      // const response = await zrExpressService.envoyerCommandeViaBackend(commandeData);
-      const response = await zrExpressService.envoyerCommandeViaMake(commandeData);
+      // Utilisation du service Google Sheets
+      const response = await googleSheetsService.envoyerCommande(commandeData);
 
       if (!response.success) {
-        console.error("Erreur ZRExpress:", response.error);
-        throw new Error(response.error || "Failed to send to ZRExpress");
+        console.error("Erreur Envoi:", response.error);
+        throw new Error("Erreur de connexion. Veuillez réessayer.");
       }
+
+      // Log des détails de succès
+      console.log("✅ Commande envoyée vers Google Sheets");
 
       toast({
         title: "تم تأكيد الطلب!",
@@ -113,7 +116,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.",
+        description: `Erreur: ${errorMessage}`, // Afficher l'erreur exacte pour le debug
         variant: "destructive",
       });
     } finally {
