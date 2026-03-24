@@ -38,7 +38,7 @@ export const OrderNowButton = () => {
   return (
     <Button
       onClick={scrollToForm}
-      className="fixed bottom-6 right-6 z-50 text-lg h-12 font-bold shadow-lg hover:scale-105 transition-transform duration-300 px-16 min-w-[240px] animate-pulse-slow"
+      className="fixed bottom-4 left-4 right-4 md:bottom-6 md:right-6 md:left-auto z-50 text-lg h-14 md:h-12 font-bold shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-transform duration-300 md:min-w-[240px] animate-pulse-slow"
       size="lg"
     >
       اطلب الآن

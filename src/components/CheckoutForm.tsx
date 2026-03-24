@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Truck, ShieldCheck, Banknote, Home, Building2, User, Phone, MapPin, Plus, Minus } from "lucide-react";
+import { Home, Building2, User, Phone, MapPin, Loader2, AlertCircle, RefreshCcw } from "lucide-react";
 import { communesByWilaya } from "@/data/communes";
 import { getDeliveryPrice, deliveryRates } from "@/data/deliveryRates";
 import { googleSheetsService } from "@/services/googlesheets.service";
-import type { CommandeData } from "@/types/zrexpress.types"; // On garde le type CommandeData qui est compatible
+import { supabase } from "@/lib/supabaseClient";
+import { generatePublicOrderId } from "@/lib/orderId";
+import type { CommandeData } from "@/types/zrexpress.types";
 
 interface CheckoutFormProps {
   product: Product;
@@ -20,7 +22,9 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -33,39 +37,33 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const wilayas = Object.keys(communesByWilaya);
   const availableCommunes = formData.wilaya ? communesByWilaya[formData.wilaya] : [];
 
-  // Check availability
   const cleanWilaya = formData.wilaya ? formData.wilaya.replace(/^\d+-/, '') : '';
-  // Stop Desk is only available if:
-  // 1. Wilaya has bureau delivery in deliveryRates
   const isStopDeskAvailable = cleanWilaya ? deliveryRates[cleanWilaya]?.bureau !== null : false;
   
   const deliveryPrice = getDeliveryPrice(formData.wilaya, formData.deliveryType as 'domicile' | 'stop_desk');
   const productTotal = product.price * quantity;
   const totalPrice = productTotal + deliveryPrice;
 
-  // Auto-switch to domicile if stop desk is not available
   useEffect(() => {
     if (!isStopDeskAvailable && formData.deliveryType === 'stop_desk') {
       setFormData(prev => ({ ...prev, deliveryType: 'domicile' }));
     }
   }, [formData.wilaya, isStopDeskAvailable, formData.deliveryType]);
 
-
-
   const handleWilayaChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
       wilaya: value,
-      commune: "" // Reset commune when wilaya changes
+      commune: ""
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e.preventDefault) e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
 
     try {
-      // 1. Submit to Netlify Forms (Backup & Dashboard - Optional, kept for data safety)
       const formElement = e.target as HTMLFormElement;
       const formDataNetlify = new FormData(formElement);
       
@@ -79,7 +77,6 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         console.warn("Netlify form submission failed, continuing to Google Sheets...");
       }
 
-      // 2. Send Order to Google Sheets via Make.com
       const commandeData: CommandeData = {
         nomClient: formData.firstName,
         telephone: formData.phone,
@@ -94,7 +91,38 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         totalPrice: totalPrice
       };
 
-      // Utilisation du service Google Sheets
+      const cleanWilayaLabel = formData.wilaya ? formData.wilaya.replace(/^\d+-\s*/, "") : "";
+      const addressValue =
+        formData.deliveryType === "stop_desk"
+          ? null
+          : (document.getElementById("address") as HTMLInputElement)?.value || null;
+
+      const publicOrderId = generatePublicOrderId();
+
+      const { error: insertError } = await supabase.from("orders").insert({
+        public_order_id: publicOrderId,
+        customer_full_name: formData.firstName,
+        customer_phone: formData.phone,
+        wilaya_raw: formData.wilaya,
+        wilaya: cleanWilayaLabel || formData.wilaya,
+        commune: formData.deliveryType === "stop_desk" ? null : formData.commune || null,
+        address: addressValue,
+        delivery_type: formData.deliveryType,
+        product_id: (product as any).id ?? null,
+        product_name: product.name,
+        unit_price: product.price,
+        quantity: quantity,
+        subtotal: productTotal,
+        delivery_price: deliveryPrice,
+        total_price: totalPrice,
+        status: "pending",
+        notes: null,
+      });
+
+      if (insertError) {
+        throw new Error(`Supabase: ${insertError.message}`);
+      }
+
       const response = await googleSheetsService.envoyerCommande(commandeData);
 
       if (!response.success) {
@@ -102,21 +130,40 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         throw new Error("Erreur de connexion. Veuillez réessayer.");
       }
 
-      // Log des détails de succès
-      console.log("✅ Commande envoyée vers Google Sheets");
-
       toast({
         title: "تم تأكيد الطلب!",
         description: "شكرًا على طلبك. تم إرسال الطلب بنجاح.",
       });
 
-      navigate("/merci");
+      navigate("/merci", { 
+        state: { 
+          orderId: publicOrderId,
+          productName: product.name,
+          totalPrice: totalPrice,
+          wilaya: cleanWilayaLabel || formData.wilaya,
+        }
+      });
     } catch (error) {
       console.error('Order error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      let isNetworkError = false;
+      if (!navigator.onLine) {
+        isNetworkError = true;
+      } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        isNetworkError = true;
+      } else if (error instanceof Error && (error.message.includes('NetworkError') || error.message.toLowerCase().includes('fetch'))) {
+        isNetworkError = true;
+      }
+
+      const message = isNetworkError 
+        ? "تحقق من اتصالك بالإنترنت وحاول مجدداً" 
+        : "حدث خطأ، يرجى المحاولة مرة أخرى";
+        
+      setErrorMsg(message);
+      
       toast({
         title: "خطأ",
-        description: `Erreur: ${errorMessage}`, // Afficher l'erreur exacte pour le debug
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -125,16 +172,15 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   };
 
   return (
-    <div className="bg-card rounded-xl shadow-lg border p-6 md:p-8">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 p-5 md:p-6" dir="rtl" id="order-form">
       <form 
         onSubmit={handleSubmit} 
-        className="space-y-6"
+        className="space-y-4"
         name="order-form"
         method="POST"
         data-netlify="true"
         data-netlify-honeypot="bot-field"
       >
-        {/* Hidden fields for Netlify */}
         <input type="hidden" name="form-name" value="order-form" />
         <input type="hidden" name="bot-field" />
         <input type="hidden" name="product-name" value={product.name} />
@@ -142,95 +188,106 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         <input type="hidden" name="delivery-price" value={deliveryPrice} />
         <input type="hidden" name="total-price" value={totalPrice} />
         
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              الاسم واللقب
+        {/* Name */}
+        <div className="space-y-1.5">
+          <Label htmlFor="fullName" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+            <User className="h-4 w-4 text-[#0ea5e9]" />
+            الاسم واللقب
+          </Label>
+          <Input 
+            id="fullName"
+            name="fullName"
+            required 
+            placeholder="اسمك الكامل"
+            value={formData.firstName}
+            onChange={e => setFormData({...formData, firstName: e.target.value})}
+            className="h-11 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#0ea5e9] text-right transition-colors"
+          />
+        </div>
+
+        {/* Phone */}
+        <div className="space-y-1.5">
+          <Label htmlFor="phone" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+            <Phone className="h-4 w-4 text-[#0ea5e9]" />
+            رقم الهاتف
+          </Label>
+          <Input 
+            id="phone"
+            name="phone"
+            required 
+            type="tel" 
+            placeholder="05 XX XX XX XX"
+            pattern="^(05|06|07)( [0-9]{2}){4}$"
+            title="رقم الهاتف يجب أن يبدأ بـ 05 أو 06 أو 07 ويحتوي على 10 أرقام"
+            maxLength={14}
+            value={formData.phone}
+            onBlur={() => setPhoneTouched(true)}
+            onChange={e => {
+              const digits = e.target.value.replace(/\D/g, '');
+              let formatted = '';
+              for (let i = 0; i < digits.length; i++) {
+                if (i > 0 && i % 2 === 0) formatted += ' ';
+                formatted += digits[i];
+              }
+              const finalPhone = formatted.substring(0, 14);
+              setFormData({...formData, phone: finalPhone});
+              if (finalPhone.length === 14) setPhoneTouched(true);
+            }}
+            className={`h-11 bg-gray-50/50 focus:bg-white text-left transition-colors ${
+              phoneTouched && formData.phone.length > 0 && !/^(05|06|07)( \d{2}){4}$/.test(formData.phone)
+                ? 'border-red-500 focus:border-red-500 hover:border-red-500'
+                : 'border-gray-200 focus:border-[#0ea5e9]'
+            }`}
+            dir="ltr"
+          />
+          {phoneTouched && formData.phone.length > 0 && !/^(05|06|07)( \d{2}){4}$/.test(formData.phone) && (
+            <p className="text-sm text-red-500 font-medium mt-1 animate-in fade-in">
+              رقم الهاتف غير صحيح (مثال: 05 55 12 34 56)
+            </p>
+          )}
+        </div>
+
+        {/* Wilaya & Commune */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+              <MapPin className="h-4 w-4 text-[#0ea5e9]" />
+              الولاية
             </Label>
-            <Input 
-              id="fullName"
-              name="fullName"
-              required 
-              placeholder="اسمك الكامل"
-              value={formData.firstName}
-              onChange={e => setFormData({...formData, firstName: e.target.value})}
-            />
+            <Select name="wilaya" value={formData.wilaya} onValueChange={handleWilayaChange} required>
+              <SelectTrigger className="h-11 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#0ea5e9] text-right transition-colors" dir="rtl">
+                <SelectValue placeholder="الولاية" />
+              </SelectTrigger>
+              <SelectContent dir="rtl" className="max-h-[200px]">
+                {wilayas.map((w) => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-primary" />
-              رقم الهاتف
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+              <MapPin className="h-4 w-4 text-[#0ea5e9]" />
+              البلدية
             </Label>
-            <Input 
-              id="phone"
-              name="phone"
-              required 
-              type="tel" 
-              placeholder="05 XX XX XX XX"
-              pattern="^(05|06|07)[0-9]{8}$"
-              title="رقم الهاتف يجب أن يبدأ بـ 05 أو 06 أو 07 ويحتوي على 10 أرقام فقط"
-              maxLength={10}
-              value={formData.phone}
-              onChange={e => {
-                const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                setFormData({...formData, phone: value});
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                الولاية
-              </Label>
-              <Select 
-                name="wilaya"
-                value={formData.wilaya} 
-                onValueChange={handleWilayaChange}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="الولاية" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[200px]">
-                  {wilayas.map((w) => (
-                    <SelectItem key={w} value={w}>{w}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                البلدية
-              </Label>
-              <Select 
-                name="commune"
-                value={formData.commune} 
-                onValueChange={(v) => setFormData({...formData, commune: v})}
-                disabled={!formData.wilaya || formData.deliveryType === 'stop_desk'}
-                required={formData.deliveryType !== 'stop_desk'}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="البلدية" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[200px]">
-                  {availableCommunes.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select name="commune" value={formData.commune} onValueChange={(v) => setFormData({...formData, commune: v})} disabled={!formData.wilaya || formData.deliveryType === 'stop_desk'} required={formData.deliveryType !== 'stop_desk'}>
+              <SelectTrigger className="h-11 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#0ea5e9] text-right transition-colors" dir="rtl">
+                <SelectValue placeholder="البلدية" />
+              </SelectTrigger>
+              <SelectContent dir="rtl" className="max-h-[200px]">
+                {availableCommunes.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="address" className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
+        {/* Address */}
+        <div className="space-y-1.5">
+          <Label htmlFor="address" className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+            <MapPin className="h-4 w-4 text-[#0ea5e9]" />
             العنوان
           </Label>
           <Input 
@@ -239,132 +296,130 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
             required={formData.deliveryType !== 'stop_desk'}
             disabled={formData.deliveryType === 'stop_desk'}
             placeholder="أدخل عنوانك الكامل"
+            className="h-11 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-[#0ea5e9] text-right disabled:opacity-50 transition-colors"
           />
         </div>
 
-        <div className="space-y-3">
-          <Label>طريقة التوصيل</Label>
+        {/* Delivery Method */}
+        <div className="space-y-1.5 pt-1">
+          <Label className="text-sm font-semibold text-gray-800 block mb-2">طريقة التوصيل</Label>
           <input type="hidden" name="deliveryType" value={formData.deliveryType} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div 
-              className={`border rounded-lg py-2 px-1 cursor-pointer transition-all ${formData.deliveryType === 'domicile' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-primary/50'}`}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl cursor-pointer transition-all border ${formData.deliveryType === 'domicile' ? 'border-[#0ea5e9] bg-blue-50/50 shadow-sm' : 'border-gray-200 bg-gray-100/50 hover:bg-gray-50'}`}
               onClick={() => setFormData({...formData, deliveryType: 'domicile'})}
             >
-              <div className="flex flex-col items-center text-center gap-1">
-                <Home className={`h-5 w-5 ${formData.deliveryType === 'domicile' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-medium">إلى المنزل</span>
-              </div>
+              <Home className={`h-5 w-5 mb-1.5 ${formData.deliveryType === 'domicile' ? 'text-[#0ea5e9]' : 'text-gray-400'}`} />
+              <span className={`text-sm ${formData.deliveryType === 'domicile' ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>إلى المنزل</span>
             </div>
             
             <div 
-              className={`border rounded-lg py-2 px-1 transition-all ${
-                !isStopDeskAvailable 
-                  ? 'opacity-50 cursor-not-allowed bg-muted' 
-                  : formData.deliveryType === 'stop_desk' 
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary cursor-pointer' 
-                    : 'hover:border-primary/50 cursor-pointer'
-              }`}
-              onClick={() => {
-                if (isStopDeskAvailable) {
-                  setFormData({...formData, deliveryType: 'stop_desk', commune: ''});
-                }
-              }}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all border ${
+                  !isStopDeskAvailable 
+                    ? 'opacity-60 cursor-not-allowed bg-gray-100/80 border-gray-200' 
+                    : formData.deliveryType === 'stop_desk' 
+                      ? 'border-[#0ea5e9] bg-blue-50/50 shadow-sm cursor-pointer' 
+                      : 'border-gray-200 bg-gray-100/50 hover:bg-gray-50 cursor-pointer'
+                }`}
+                onClick={() => {
+                  if (isStopDeskAvailable) {
+                    setFormData({...formData, deliveryType: 'stop_desk', commune: ''});
+                  }
+                }}
             >
-              <div className="flex flex-col items-center text-center gap-1">
-                <Truck className={`h-5 w-5 ${!isStopDeskAvailable ? 'text-muted-foreground' : formData.deliveryType === 'stop_desk' ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-medium">
-                  {isStopDeskAvailable ? "الى مكتب (ZR Express)" : "غير متوفر"}
-                </span>
-              </div>
+              <Building2 className={`h-5 w-5 mb-1.5 ${!isStopDeskAvailable ? 'text-gray-400' : formData.deliveryType === 'stop_desk' ? 'text-[#0ea5e9]' : 'text-gray-400'}`} />
+              <span className={`text-sm ${!isStopDeskAvailable ? 'text-gray-500' : formData.deliveryType === 'stop_desk' ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>
+                {isStopDeskAvailable ? "مكتب ZR Express" : "غير متوفر"}
+              </span>
             </div>
           </div>
         </div>
 
-
-
-        <div className="flex items-center justify-start bg-background rounded-md border h-12 px-3 gap-4">
-          <Label className="text-sm font-medium">الكمية</Label>
+        {/* Quantity */}
+        <div className="flex items-center justify-between border border-gray-200 bg-gray-50/50 rounded-xl p-2.5 mt-2">
+          <Label className="text-sm font-semibold text-gray-800 px-2">الكمية</Label>
           <div className="flex items-center gap-4">
             <button
               type="button"
-              className="h-full px-3 text-xl font-normal hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              disabled={quantity <= 1}
-              aria-label="Decrease quantity"
-            >
-              −
-            </button>
-            <span className="text-lg font-bold min-w-[2rem] text-center tabular-nums">{quantity}</span>
-            <button
-              type="button"
-              className="h-full px-3 text-xl font-normal hover:text-primary transition-colors flex items-center justify-center"
+              className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-black hover:bg-gray-200/50 transition-colors rounded-md text-lg"
               onClick={() => setQuantity(quantity + 1)}
-              aria-label="Increase quantity"
             >
               +
+            </button>
+            <span className="font-bold text-gray-900 text-lg min-w-[1.5rem] text-center">{quantity}</span>
+            <button
+              type="button"
+              className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-black hover:bg-gray-200/50 transition-colors rounded-md text-lg disabled:opacity-30"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={quantity <= 1}
+            >
+              −
             </button>
           </div>
         </div>
 
-        <div className="pt-4 space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">سعر المنتج (x{quantity})</span>
-              <span className="font-medium">{productTotal.toLocaleString()} DA</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">التوصيل</span>
-              <span className="font-medium">{deliveryPrice.toLocaleString()} DA</span>
-            </div>
-          </div>
+        {/* Total Price Section */}
+        <div className="pt-2 pb-1 space-y-1.5">
+           <div className="flex justify-between items-center text-sm text-gray-600">
+             <span className="font-semibold text-gray-900">{productTotal.toLocaleString("fr-DZ")} DA</span>
+             <span>سعر المنتج (x{quantity})</span>
+           </div>
+           <div className="flex justify-between items-center text-sm text-gray-600">
+             <span className="font-semibold text-gray-900">{deliveryPrice.toLocaleString("fr-DZ")} DA</span>
+             <span>التوصيل</span>
+           </div>
+           <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100 border-dashed">
+             <span className="text-2xl font-bold text-[#0ea5e9]">{totalPrice.toLocaleString("fr-DZ")} DA</span>
+             <span className="font-bold text-gray-900">المجموع المطلوب</span>
+           </div>
+        </div>
 
-          <div className="flex justify-between items-center text-lg font-bold border-t pt-4">
-            <span>المجموع المطلوب</span>
-            <span className="text-primary text-2xl">
-              {totalPrice.toLocaleString()} DA
-            </span>
-          </div>
-
-          <Button 
-            type="submit" 
-            className="w-full text-lg h-12 font-bold animate-pulse" 
-            size="lg"
-            disabled={loading}
-          >
-            {loading ? "جاري المعالجة..." : "اطلب الآن"}
-          </Button>
-
-          <div className="grid grid-cols-3 gap-2 pt-4">
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-[10px] uppercase">ضمان</p>
-                <p className="text-[9px] text-muted-foreground leading-tight">استرجاع المال إذا لم ترضَ</p>
-              </div>
+        {/* Submit Button & Error State */}
+        <div className="pt-2 space-y-3">
+          {errorMsg && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-red-600 animate-in fade-in slide-in-from-bottom-2">
+              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <p className="text-sm font-medium leading-relaxed font-arabic">{errorMsg}</p>
             </div>
-
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <Truck className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-[10px] uppercase">توصيل</p>
-                <p className="text-[9px] text-muted-foreground leading-tight">سريع في 58 ولاية</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <Banknote className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-[10px] uppercase">دفع</p>
-                <p className="text-[9px] text-muted-foreground leading-tight">عند الاستلام (يدًا بيد)</p>
-              </div>
-            </div>
-          </div>
+          )}
+          
+          {errorMsg ? (
+            <Button 
+              type="button" 
+              onClick={(e) => handleSubmit(e)}
+              className="w-full text-lg h-14 font-bold rounded-xl bg-gray-900 border-2 border-transparent hover:bg-gray-800 shadow-md text-white transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  جاري إرسال طلبك...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="h-5 w-5" />
+                  إعادة المحاولة
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button 
+              type="submit" 
+              className="w-full text-lg h-14 font-bold rounded-xl bg-[#0ea5e9] hover:bg-[#0ea5e9]/90 shadow-md text-white transition-all duration-300 active:scale-[0.98] flex items-center justify-center gap-2"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  جاري إرسال طلبك...
+                </>
+              ) : (
+                "اطلب الآن"
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </div>

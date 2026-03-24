@@ -1,4 +1,4 @@
-// ============================================
+  // ============================================
 // FICHIER : src/services/googlesheets.service.ts
 // Service pour envoyer les commandes vers Google Sheets
 // via Make.com, formaté pour l'import ZRExpress
@@ -74,8 +74,8 @@ class GoogleSheetsService {
     // Nettoyage du code wilaya (ex: "16- Alger" -> "Alger")
     // Note: L'import ZRExpress semble accepter le nom de la wilaya
     // Si la wilaya contient un tiret, on prend la partie après, sinon tout
-    const cleanWilaya = commande.wilaya.includes('-') 
-      ? commande.wilaya.split('-')[1].trim() 
+    const cleanWilaya = commande.wilaya.includes('-')
+      ? commande.wilaya.split('-')[1].trim()
       : commande.wilaya;
 
     const isStopDesk = commande.deliveryType === 'stop_desk';

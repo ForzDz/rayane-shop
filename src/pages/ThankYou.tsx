@@ -1,12 +1,19 @@
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Home, Package, Mail, Phone, ShoppingBag, ArrowRight } from "lucide-react";
+import { CheckCircle2, Home, Package, Mail, Phone, ShoppingBag, ArrowRight, MessageCircle } from "lucide-react";
 import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
 const ThankYou = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const orderData = location.state as {
+    orderId: string;
+    productName: string;
+    totalPrice: number;
+    wilaya: string;
+  } | null;
 
   useEffect(() => {
     // Launch confetti
@@ -93,10 +100,65 @@ const ThankYou = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="text-xl text-muted-foreground mb-10 max-w-xl mx-auto leading-relaxed"
+            className="text-xl text-muted-foreground mb-8 max-w-xl mx-auto leading-relaxed"
           >
-            تم تسجيل طلبك بنجاح. فريقنا سيتصل بك قريباً جداً لتأكيد التفاصيل وموعد التوصيل.
+            تم تسجيل طلبك بنجاح. سيتم التواصل معك خلال 24-48 ساعة لتأكيد الطلب.
           </motion.p>
+
+          {/* Order Details Summary */}
+          {orderData && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.7 }}
+              className="bg-primary/5 rounded-2xl p-6 border border-primary/10 mb-8 text-right max-w-sm mx-auto shadow-inner"
+              dir="rtl"
+            >
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-primary/10">
+                <span className="text-muted-foreground font-medium">رقم الطلب:</span>
+                <span className="font-extrabold text-xl text-primary bg-background px-3 py-1 rounded-lg border border-primary/20 shadow-sm">
+                  #{orderData.orderId}
+                </span>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">المنتج:</span>
+                  <span className="font-semibold text-foreground truncate mr-4">{orderData.productName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">الولاية:</span>
+                  <span className="font-semibold text-foreground">{orderData.wilaya}</span>
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-primary/10 mt-2">
+                  <span className="font-bold text-foreground">المجموع:</span>
+                  <span className="font-bold text-lg text-[#0ea5e9]">
+                    {orderData.totalPrice.toLocaleString("fr-DZ")} DA
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* WhatsApp Button */}
+          {orderData && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="mb-10 flex justify-center"
+            >
+              <a 
+                href={`https://wa.me/213556482798?text=${encodeURIComponent(`مرحباً، أريد متابعة طلبي رقم #${orderData.orderId}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-lg h-14 px-8 rounded-xl shadow-[0_8px_20px_-6px_rgba(37,211,102,0.4)] hover:shadow-[0_12px_24px_-8px_rgba(37,211,102,0.5)] hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                dir="rtl"
+              >
+                <MessageCircle className="h-6 w-6" />
+                تواصل معنا عبر واتساب
+              </a>
+            </motion.div>
+          )}
 
           {/* Info Cards */}
           <motion.div 

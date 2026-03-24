@@ -1,220 +1,218 @@
-import { useState } from "react";
-import { products } from "@/data/products";
-import { CheckoutForm } from "@/components/CheckoutForm";
-import { CustomerReviews } from "@/components/CustomerReviews";
-import { TestimonialsDemo } from "@/components/TestimonialsDemo";
-import { Badge } from "@/components/ui/badge";
-import { Star, Check, ChevronLeft, ChevronRight, Gift } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, ShoppingBag } from "lucide-react";
+
+interface DbProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  original_price: number | null;
+  category: string;
+  in_stock: boolean;
+  is_active: boolean;
+  rating: number | null;
+  reviews_count: number | null;
+}
+
+interface ProductImageRow {
+  image_url: string;
+}
+
+type UiProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: string[];
+};
 
 const Home = () => {
-  const product = products[0]; // Secret Lift
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [products, setProducts] = useState<UiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Minimum swipe distance (in px)
-  const minSwipeDistance = 50;
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null); // Reset touch end
-    setTouchStart(e.targetTouches[0].clientX);
-  };
+      const { data, error: pError } = await supabase
+        .from("products")
+        .select("*, product_images(*)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
+      if (pError) {
+        setError(pError.message);
+        setLoading(false);
+        return;
+      }
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+      const rows = data as (DbProduct & { product_images: ProductImageRow[] })[];
+      const uiProducts = rows.map(row => {
+        const images = (row.product_images ?? []).map((x) => x.image_url).filter(Boolean);
+        return {
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          description: row.description,
+          price: Number(row.price),
+          originalPrice: row.original_price ? Number(row.original_price) : undefined,
+          images
+        };
+      });
 
-    if (isLeftSwipe) {
-      // Swipe Left -> Next Image
-      nextImage();
-    }
-    if (isRightSwipe) {
-      // Swipe Right -> Previous Image
-      prevImage();
-    }
-  };
+      setProducts(uiProducts);
+      setLoading(false);
+    };
 
-  if (!product) return <div>جاري التحميل...</div>;
+    load();
+  }, []);
 
-  const nextImage = () => {
-    setSelectedImage((prev) => (prev + 1) % product.images.length);
-  };
+  if (loading) return (
+    <div className="min-h-[60vh] flex flex-col items-center justify-center">
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <p className="mt-4 text-muted-foreground mr-3 font-medium">جاري تحميل المنتجات...</p>
+    </div>
+  );
 
-  const prevImage = () => {
-    setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length);
-  };
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-10">
+        <div className="max-w-2xl mx-auto rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center">
+          <p className="text-sm text-destructive">
+            خطأ في تحميل المنتجات: {error}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) return <div className="container mx-auto px-4 py-20 text-center text-xl text-muted-foreground font-medium">لا توجد منتجات متوفرة حاليا.</div>;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Product Title & Rating (Mobile & Desktop) */}
-        <div className="mb-8 text-center lg:text-left">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 leading-tight">
-            {product.name}
-            <span className="inline-flex items-center gap-2 mr-3 align-middle">
-              <span className="text-2xl font-bold text-black">+ مع هدية</span>
-              <Gift className="h-7 w-7 text-primary animate-bounce" />
-            </span>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Hero Section */}
+      <div className="relative py-20 px-4 mb-10 overflow-hidden bg-gradient-to-b from-primary/10 via-background to-background">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute top-10 left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl" />
+        
+        <div className="max-w-3xl mx-auto text-center relative z-10">
+          <Badge variant="outline" className="mb-6 px-4 py-1.5 border-primary/30 text-primary bg-primary/5 text-sm font-semibold rounded-full shadow-sm hover:bg-primary/10 transition-colors cursor-default">
+            <Sparkles className="w-4 h-4 ml-2 inline-block animate-pulse" />
+            الجودة مضمونة
+          </Badge>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-foreground mb-6 leading-tight tracking-tight">
+            اكتشف <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600">منتجاتنا المميزة</span>
           </h1>
-          
-          
-          <div className="flex items-center justify-center lg:justify-start gap-3">
-            <div className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-2 rounded-lg border border-primary/20">
-              <Star className="h-5 w-5 fill-primary text-primary" />
-              <span className="font-bold text-lg text-foreground">{product.rating}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-semibold text-foreground">{product.reviews}</span>
-              <span className="text-xs text-muted-foreground">تقييم موثوق</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Left Column: Product Images & Details */}
-          <div className="space-y-8">
-            {/* Images Carousel */}
-            <div 
-              className="relative aspect-square bg-accent rounded-2xl overflow-hidden shadow-sm group touch-pan-y"
-              onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={onTouchEnd}
-            >
-              <img
-                src={product.images[selectedImage]}
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-500"
-                width="600"
-                height="600"
-                fetchPriority={selectedImage === 0 ? "high" : "auto"}
-                loading={selectedImage === 0 ? "eager" : "lazy"}
-              />
-              {product.badge && (
-                <Badge className="absolute top-4 right-4 text-lg px-4 py-1 z-10" variant="destructive">
-                  {product.badge}
-                </Badge>
-              )}
-              
-              {/* Navigation Arrows */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-primary bg-white/20 hover:bg-white/40 backdrop-blur-sm h-12 w-12 rounded-full animate-bounce-left z-10"
-                onClick={prevImage}
-                aria-label="Previous image"
-              >
-                <ChevronLeft className="h-8 w-8" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-primary bg-white/20 hover:bg-white/40 backdrop-blur-sm h-12 w-12 rounded-full animate-bounce-right z-10"
-                onClick={nextImage}
-                aria-label="Next image"
-              >
-                <ChevronRight className="h-8 w-8" />
-              </Button>
-
-              {/* Dots Indicator */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                {product.images.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      selectedImage === index ? "bg-primary w-4" : "bg-white/60 hover:bg-white"
-                    }`}
-                    aria-label={`View image ${index + 1}`}
-                    aria-current={selectedImage === index ? "true" : "false"}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Product Info (Mobile: Hidden, shown below title) */}
-            <div className="hidden lg:block space-y-6">
-              <div className="prose prose-lg text-muted-foreground">
-                <p>{product.description}</p>
-              </div>
-              
-              <div className="bg-accent/30 p-6 rounded-xl">
-                <h3 className="font-semibold text-foreground mb-4 text-lg">لماذا تختار هذا المنتج؟</h3>
-                <ul className="space-y-3">
-                  {product.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="mt-1 bg-primary/10 p-1 rounded-full">
-                        <Check className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="text-muted-foreground">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Price & Checkout Form */}
-          <div className="space-y-8">
-            <div>
-
-              <div className="flex flex-wrap items-baseline gap-4 mb-6">
-                <span className="text-5xl font-bold text-primary">
-                  {product.price.toLocaleString()} DA
-                </span>
-                {product.originalPrice && (
-                  <>
-                    <span className="text-2xl text-muted-foreground line-through decoration-2 decoration-destructive/50">
-                      {product.originalPrice.toLocaleString()} DA
-                    </span>
-                    <Badge variant="destructive" className="text-lg px-3 py-1 animate-pulse">
-                      تخفيض {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
-                    </Badge>
-                  </>
-                )}
-              </div>
-
-
-
-              {/* Checkout Form */}
-              <div id="order-form" className="scroll-mt-24">
-                <CheckoutForm product={product} />
-              </div>
-
-              {/* Mobile Description (Visible only on mobile) */}
-              <div className="lg:hidden mt-8 space-y-6">
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  {product.description}
-                </p>
-                <div className="bg-accent/30 p-5 rounded-xl">
-                  <ul className="space-y-3">
-                    {product.features.slice(0, 3).map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
+          <p className="text-lg md:text-xl text-muted-foreground font-medium mb-10 leading-relaxed">
+            أفضل التركيبات والعروض المخصصة لجمالك وعنايتك الشخصية وتسوقك اليومي.
+          </p>
+          <div className="flex justify-center gap-4">
+            <Button size="lg" className="rounded-full shadow-lg shadow-primary/25 h-14 px-8 text-lg font-bold gap-3 group">
+              <ShoppingBag className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              ابدأ التسوق
+            </Button>
           </div>
         </div>
       </div>
-      
-      {/* Testimonials Section */}
-      <TestimonialsDemo />
-      
-      {/* Customer Reviews Images */}
-      <CustomerReviews />
+
+      <div className="container mx-auto px-4">
+        {/* Modern Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {products.map(product => (
+            <div key={product.id} className="group relative bg-card rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-border/50 hover:border-primary/30 flex flex-col h-full hover:-translate-y-1">
+              
+              {/* Product Image Box */}
+              <Link to={`/product/${product.id}`} className="block relative aspect-[4/3] bg-muted/30 overflow-hidden">
+                {product.images?.[0] ? (
+                  <>
+                    {/* Inner image container for scale effect without breaking border radius */}
+                    <div className="w-full h-full overflow-hidden transition-transform duration-700 ease-in-out group-hover:scale-105">
+                      <img
+                        src={`${product.images[0]}?width=400&quality=70&format=webp`}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        width="400"
+                        height="300"
+                      />
+                      {/* Dark overlay on hover */}
+                      <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors duration-500" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground/50 text-sm font-medium">لا توجد صورة</div>
+                )}
+                
+                {/* Sale Badge */}
+                {product.originalPrice && (
+                  <div className="absolute top-4 right-4 z-10 animate-fade-in">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-destructive blur-md opacity-40 rounded-full" />
+                      <Badge variant="destructive" className="relative text-sm font-bold px-3 py-1.5 shadow-md">
+                        تخفيض {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Hover Quick Action */}
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                  <span className="bg-white/90 backdrop-blur-sm text-foreground text-sm font-bold px-5 py-2.5 rounded-full shadow-lg border border-white/50">
+                    عرض التفاصيل ←
+                  </span>
+                </div>
+              </Link>
+
+              {/* Product Info */}
+              <div className="p-6 flex flex-col flex-1 bg-gradient-to-b from-card to-muted/10">
+                <Link to={`/product/${product.id}`} className="block mb-2 mt-1">
+                  <h3 className="text-xl font-bold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors duration-300">
+                    {product.name}
+                  </h3>
+                </Link>
+                
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mt-1 mb-5 flex-1">
+                  {product.description}
+                </p>
+                
+                {/* Price Display */}
+                <div className="mt-auto">
+                  <div className="h-px w-full bg-border/50 mb-4" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1">
+                      <span className="text-2xl font-black text-foreground">
+                        {product.price.toLocaleString("fr-DZ")} <span className="text-lg text-primary mr-0.5">DA</span>
+                      </span>
+                      {product.originalPrice && (
+                        <span className="text-sm font-medium text-muted-foreground line-through decoration-destructive/30 decoration-2">
+                          {product.originalPrice.toLocaleString("fr-DZ")} DA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button asChild className="w-full mt-5 rounded-xl h-12 text-base font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 relative overflow-hidden">
+                    <Link to={`/product/${product.id}`}>
+                      <span className="relative z-10 flex items-center justify-center gap-2">
+                        Voir produit
+                      </span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

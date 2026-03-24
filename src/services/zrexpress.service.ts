@@ -50,6 +50,7 @@ class ZRExpressService {
     commande: CommandeData, 
     options?: Partial<RetryOptions>
   ): Promise<ZRExpressResponse> {
+    
     const retryOptions = { ...this.DEFAULT_RETRY_OPTIONS, ...options };
     let lastError: Error | null = null;
 
@@ -353,7 +354,9 @@ class ZRExpressService {
       success: '✅'
     };
 
-    console.log(`${emoji[level]} [ZRExpress] ${message}`, data || '');
+    if (level === 'error') {
+      console.error(`${emoji[level]} [ZRExpress] ${message}`, data || '');
+    }
     
     // Garder seulement les 50 derniers logs en mémoire
     if (this.logs.length > 50) {
@@ -422,7 +425,7 @@ export type { CommandeData, ZRExpressResponse };
 if (import.meta.env.DEV) {
   (window as any).testZRExpressConnection = async () => {
     const result = await zrExpressService.testerConnexion();
-    console.log(result ? '✅ Connexion ZRExpress réussie' : '❌ Connexion ZRExpress échouée');
+
     return result;
   };
 }
