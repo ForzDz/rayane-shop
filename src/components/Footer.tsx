@@ -61,10 +61,10 @@ export const Footer = () => {
             <div>
               <h3 className="font-bold text-lg mb-4">روابط سريعة</h3>
               <ul className="space-y-2 text-sm">
-                <li><span>الرئيسية</span></li>
-                <li><span>المنتجات</span></li>
-                <li><span>من نحن</span></li>
-                <li><span>اتصل بنا</span></li>
+                <li><Link to="/" className="hover:text-primary transition-colors">الرئيسية</Link></li>
+                <li><Link to="/" className="hover:text-primary transition-colors">المنتجات</Link></li>
+                <li><Link to="/track" className="hover:text-primary transition-colors">تتبع الطلب</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">اتصل بنا</Link></li>
               </ul>
             </div>
 
@@ -72,10 +72,10 @@ export const Footer = () => {
             <div>
               <h3 className="font-bold text-lg mb-4">خدمة العملاء</h3>
               <ul className="space-y-2 text-sm">
-                <li><span>التوصيل والإرجاع</span></li>
-                <li><span>طرق الدفع</span></li>
-                <li><span>الأسئلة الشائعة</span></li>
-                <li><span>الشروط والأحكام</span></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">التوصيل والإرجاع</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">طرق الدفع</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">الأسئلة الشائعة</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">الشروط والأحكام</Link></li>
               </ul>
             </div>
           </div>

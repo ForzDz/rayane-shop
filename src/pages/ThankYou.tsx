@@ -10,12 +10,41 @@ const ThankYou = () => {
   const location = useLocation();
   const orderData = location.state as {
     orderId: string;
+    productId: string;
     productName: string;
     totalPrice: number;
     wilaya: string;
   } | null;
 
   useEffect(() => {
+    // Event Tracking
+    if (orderData) {
+      // Facebook Pixel — Purchase
+      if (typeof fbq !== 'undefined') {
+        fbq('track', 'Purchase', {
+          value: orderData.totalPrice,
+          currency: 'DZD',
+          content_ids: [orderData.productId || orderData.productName],
+          content_type: 'product'
+        });
+      }
+
+      // Google Analytics 4 — purchase
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'purchase', {
+          currency: 'DZD',
+          value: orderData.totalPrice,
+          transaction_id: orderData.orderId,
+          items: [{
+            item_id: orderData.productId || orderData.productName,
+            item_name: orderData.productName,
+            price: orderData.totalPrice,
+            quantity: 1
+          }]
+        });
+      }
+    }
+
     // Launch confetti
     const duration = 3000;
     const end = Date.now() + duration;
@@ -49,7 +78,7 @@ const ThankYou = () => {
     }, 15000);
 
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, orderData]);
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-background via-primary/5 to-background">
@@ -220,8 +249,12 @@ const ThankYou = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
+            <Link to="/track" className="w-full sm:w-auto text-lg h-14 px-8 rounded-xl font-bold border-2 border-primary text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
+              تتبع طلبك هنا
+              <ArrowRight className="h-5 w-5" />
+            </Link>
             <Button
               asChild
               variant="default"

@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { CheckoutForm } from "@/components/CheckoutForm";
 import { CustomerReviews } from "@/components/CustomerReviews";
+import { ReviewForm } from "@/components/ReviewForm";
 import { TestimonialsDemo } from "@/components/TestimonialsDemo";
 import { Badge } from "@/components/ui/badge";
 import { Star, Check, ChevronLeft, ChevronRight, Gift } from "lucide-react";
@@ -129,6 +130,32 @@ const ProductDetail = () => {
       });
       setSelectedImage(0);
       setLoadingProduct(false);
+
+      // Facebook Pixel — ViewContent
+      if (typeof fbq !== 'undefined') {
+        fbq('track', 'ViewContent', {
+          content_name: productRow.name,
+          content_ids: [productRow.id],
+          content_type: 'product',
+          value: Number(productRow.price),
+          currency: 'DZD',
+        });
+      }
+
+      // Google Analytics 4 — product_view
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'product_view', {
+          currency: 'DZD',
+          value: Number(productRow.price),
+          items: [{
+            item_id: productRow.id,
+            item_name: productRow.name,
+            item_category: productRow.category,
+            price: Number(productRow.price),
+            quantity: 1
+          }]
+        });
+      }
     };
 
     load();
@@ -326,11 +353,16 @@ const ProductDetail = () => {
         </div>
       </div>
       
+      {/* Review Submission Form */}
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <ReviewForm productId={product.id} />
+      </div>
+
       {/* Testimonials Section */}
       <TestimonialsDemo />
       
-      {/* Customer Reviews Images */}
-      <CustomerReviews />
+      {/* Customer Reviews */}
+      <CustomerReviews productId={product.id} />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const checkoutTracked = useRef(false);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -56,6 +57,35 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       wilaya: value,
       commune: ""
     }));
+  };
+
+  // Event tracking (fires once on first form focus)
+  const handleFormFocus = () => {
+    if (!checkoutTracked.current) {
+      checkoutTracked.current = true;
+      
+      // Facebook Pixel — InitiateCheckout
+      if (typeof fbq !== 'undefined') {
+        fbq('track', 'InitiateCheckout', {
+          value: totalPrice,
+          currency: 'DZD',
+        });
+      }
+
+      // Google Analytics 4 — begin_checkout
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'begin_checkout', {
+          currency: 'DZD',
+          value: totalPrice,
+          items: [{
+            item_id: (product as any).id || product.name,
+            item_name: product.name,
+            price: product.price,
+            quantity: quantity
+          }]
+        });
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,6 +160,23 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
         throw new Error("Erreur de connexion. Veuillez réessayer.");
       }
 
+      // Admin Email Notification (Async/Non-blocking)
+      fetch("/.netlify/functions/send-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: publicOrderId,
+          nom: formData.firstName,
+          telephone: formData.phone,
+          wilaya: cleanWilayaLabel || formData.wilaya,
+          commune: addressValue || 'Stop Desk',
+          produits: [{ name: product.name, price: product.price, quantity: quantity }],
+          total: totalPrice,
+          deliveryType: formData.deliveryType,
+          deliveryPrice: deliveryPrice
+        })
+      }).catch(err => console.error("Admin Email notification failed:", err));
+
       toast({
         title: "تم تأكيد الطلب!",
         description: "شكرًا على طلبك. تم إرسال الطلب بنجاح.",
@@ -138,6 +185,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       navigate("/merci", { 
         state: { 
           orderId: publicOrderId,
+          productId: (product as any).id || product.name,
           productName: product.name,
           totalPrice: totalPrice,
           wilaya: cleanWilayaLabel || formData.wilaya,
@@ -175,6 +223,7 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 p-5 md:p-6" dir="rtl" id="order-form">
       <form 
         onSubmit={handleSubmit} 
+        onFocus={handleFormFocus}
         className="space-y-4"
         name="order-form"
         method="POST"

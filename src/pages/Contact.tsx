@@ -93,45 +93,39 @@ const Contact = () => {
     try {
       setIsSubmitting(true);
 
-      // Étape 1: Soumission Netlify Forms
-      const formData = new FormData();
-      formData.append('form-name', 'contact');
-      Object.keys(values).forEach(key => {
-        formData.append(key, values[key as keyof typeof values]);
-      });
+      // Soumission Netlify Forms
+      const body = new URLSearchParams({
+        'form-name': 'contact',
+        name: values.name,
+        email: values.email,
+        message: values.message,
+      }).toString();
 
-      // Simulate API call for dev environment if needed, or actual fetch
-      // For now, we'll just simulate a delay and success since we might not be on Netlify dev
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      /* 
-      // Uncomment for actual Netlify submission
       const netlifyResponse = await fetch('/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData as unknown as Record<string, string>).toString(),
+        body,
       });
 
       if (!netlifyResponse.ok) {
         throw new Error('Erreur lors de la soumission Netlify Forms');
       }
-      */
 
-      // Succès : redirection vers page merci
+      // Succès
       toast({
-        title: "تم إرسال الرسالة!",
+        title: "تم إرسال رسالتك بنجاح ✅",
         description: "سنرد عليك خلال 24 ساعة.",
       });
 
-      setTimeout(() => {
-        navigate('/merci');
-      }, 500);
+      setValues({ name: "", email: "", message: "" });
+      setTouched({});
+      setErrors({});
 
     } catch (error) {
       console.error('Erreur soumission:', error);
       toast({
-        title: "خطأ",
-        description: "حدث خطأ. يرجى المحاولة مرة أخرى.",
+        title: "حدث خطأ ❌",
+        description: "حدث خطأ، حاول مرة أخرى",
         variant: "destructive",
       });
     } finally {

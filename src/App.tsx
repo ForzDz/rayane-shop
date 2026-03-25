@@ -20,6 +20,7 @@ import Signup from "./pages/Signup";
 import AdminOrderDetail from "./pages/AdminOrderDetail";
 
 const ThankYou = lazy(() => import("./pages/ThankYou"));
+const TrackOrder = lazy(() => import("./pages/TrackOrder"));
 const Account = lazy(() => import("./pages/Account"));
 const Orders = lazy(() => import("./pages/Orders"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -27,6 +28,7 @@ const AdminOrders = lazy(() => import("./pages/AdminOrders"));
 const AdminProducts = lazy(() => import("./pages/AdminProducts"));
 const AdminProductEdit = lazy(() => import("./pages/AdminProductEdit"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminReviews = lazy(() => import("./pages/AdminReviews"));
 import { AdminLayout } from "@/components/AdminLayout";
 
 
@@ -57,6 +59,7 @@ const App = () => (
                   <Route path="/product/:id" element={<ProductDetail />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/merci" element={<ThankYou />} />
+                  <Route path="/track" element={<TrackOrder />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
@@ -72,6 +75,7 @@ const App = () => (
                             <Route path="orders/:id" element={<AdminOrderDetail />} />
                             <Route path="products" element={<AdminProducts />} />
                             <Route path="products/:id" element={<AdminProductEdit />} />
+                            <Route path="reviews" element={<AdminReviews />} />
                             <Route path="settings" element={<AdminSettings />} />
                           </Routes>
                         </AdminLayout>
