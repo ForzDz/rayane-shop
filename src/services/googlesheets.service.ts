@@ -38,6 +38,9 @@ class GoogleSheetsService {
       }
 
       const payload = this.formaterPourGoogleSheets(commande);
+      
+      console.error("[MAKE WEBHOOK DEBUG] Envoi vers:", this.MAKE_WEBHOOK_URL);
+      console.error("[MAKE WEBHOOK DEBUG] Payload:", JSON.stringify(payload));
 
       const response = await fetch(this.MAKE_WEBHOOK_URL, {
         method: 'POST',
@@ -46,19 +49,23 @@ class GoogleSheetsService {
         },
         body: JSON.stringify(payload)
       });
+      
+      const responseText = await response.text();
+      console.error("[MAKE WEBHOOK DEBUG] Réponse Status:", response.status, response.statusText);
+      console.error("[MAKE WEBHOOK DEBUG] Réponse Body:", responseText);
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        throw new Error(`Erreur HTTP: ${response.status} - ${responseText}`);
       }
 
       return {
         success: true,
-        data: { message: 'Commande envoyée vers Google Sheets' },
+        data: { message: 'Commande envoyée vers Google Sheets', response: responseText },
         statusCode: response.status
       };
 
     } catch (error) {
-      console.error('Erreur Google Sheets Service:', error);
+      console.error('[MAKE WEBHOOK DEBUG] Erreur EXCEPTION Google Sheets Service:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erreur inconnue',
