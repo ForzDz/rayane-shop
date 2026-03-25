@@ -29,8 +29,8 @@ const AdminProducts = lazy(() => import("./pages/AdminProducts"));
 const AdminProductEdit = lazy(() => import("./pages/AdminProductEdit"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const AdminReviews = lazy(() => import("./pages/AdminReviews"));
+const AdminContacts = lazy(() => import("./pages/AdminContacts"));
 import { AdminLayout } from "@/components/AdminLayout";
-
 
 const queryClient = new QueryClient();
 
@@ -76,6 +76,7 @@ const App = () => (
                             <Route path="products" element={<AdminProducts />} />
                             <Route path="products/:id" element={<AdminProductEdit />} />
                             <Route path="reviews" element={<AdminReviews />} />
+                            <Route path="contacts" element={<AdminContacts />} />
                             <Route path="settings" element={<AdminSettings />} />
                           </Routes>
                         </AdminLayout>

@@ -4,6 +4,7 @@ import { Phone, Mail, MapPin, Clock, MessageCircle, Send, Loader2 } from "lucide
 import { FormField } from "@/components/FormField";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 /**
  * Page Contact avec formulaire Netlify Forms + Email professionnel
@@ -93,22 +94,15 @@ const Contact = () => {
     try {
       setIsSubmitting(true);
 
-      // Soumission Netlify Forms
-      const body = new URLSearchParams({
-        'form-name': 'contact',
+      // Soumission Supabase
+      const { error } = await supabase.from('contacts').insert({
         name: values.name,
         email: values.email,
         message: values.message,
-      }).toString();
-
-      const netlifyResponse = await fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
       });
 
-      if (!netlifyResponse.ok) {
-        throw new Error('Erreur lors de la soumission Netlify Forms');
+      if (error) {
+        throw new Error(error.message);
       }
 
       // Succès
@@ -171,25 +165,11 @@ const Contact = () => {
                 أرسل لنا رسالة
               </h2>
               
-              {/* Netlify Forms - Structure HTML pure pour détection */}
+              {/* Formulaire de Contact */}
               <form 
-                name="contact" 
-                method="POST" 
-                data-netlify="true" 
-                data-netlify-honeypot="bot-field"
                 onSubmit={handleSubmit}
                 className="space-y-6"
               >
-                {/* Champs cachés requis pour Netlify */}
-                <input type="hidden" name="form-name" value="contact" />
-                
-                {/* Honeypot anti-spam (caché) */}
-                <div className="hidden" aria-hidden="true">
-                  <label>
-                    Ne pas remplir ce champ:
-                    <input name="bot-field" />
-                  </label>
-                </div>
 
                 {/* Nom et Email */}
                 <div className="grid md:grid-cols-2 gap-4">

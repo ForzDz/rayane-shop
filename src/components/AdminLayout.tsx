@@ -6,7 +6,8 @@ import {
   Package, 
   Settings, 
   ChevronLeft,
-  MessageSquare
+  MessageSquare,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { title: "الطلبات", icon: ShoppingBag, href: "/admin/orders" },
     { title: "المنتجات", icon: Package, href: "/admin/products" },
     { title: "التقييمات", icon: MessageSquare, href: "/admin/reviews" },
+    { title: "الرسائل", icon: Mail, href: "/admin/contacts" },
     { title: "الإعدادات", icon: Settings, href: "/admin/settings" },
   ];
 
