@@ -1,4 +1,4 @@
-export const FB_PIXEL_ID = "1192117281445404";
+export const FB_PIXEL_ID = "1526117252457426";
 
 declare global {
   interface Window {
