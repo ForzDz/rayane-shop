@@ -1,4 +1,5 @@
 import { MessageCircle } from "lucide-react";
+import * as fpixel from "@/lib/fpixel";
 
 export const WhatsAppButton = () => {
   const phoneNumber = "213556482798";
@@ -6,11 +7,20 @@ export const WhatsAppButton = () => {
 
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
+  const trackWhatsApp = () => {
+    // Facebook Pixel — Contact
+    fpixel.event('Contact', {
+      content_name: 'WhatsApp Click',
+      content_category: 'Contact',
+    });
+  };
+
   return (
     <a
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={trackWhatsApp}
       className="fixed bottom-6 left-6 z-50 flex items-center justify-center w-14 h-14 bg-[#25D366] text-white rounded-full shadow-lg hover:bg-[#20bd5a] hover:scale-110 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4"
       aria-label="Contact us on WhatsApp"
     >

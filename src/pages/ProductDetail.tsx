@@ -8,6 +8,7 @@ import { TestimonialsDemo } from "@/components/TestimonialsDemo";
 import { Badge } from "@/components/ui/badge";
 import { Star, Check, ChevronLeft, ChevronRight, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import * as fpixel from "@/lib/fpixel";
 
 interface DbProduct {
   id: string;
@@ -132,15 +133,13 @@ const ProductDetail = () => {
       setLoadingProduct(false);
 
       // Facebook Pixel — ViewContent
-      if (typeof fbq !== 'undefined') {
-        fbq('track', 'ViewContent', {
-          content_name: productRow.name,
-          content_ids: [productRow.id],
-          content_type: 'product',
-          value: Number(productRow.price),
-          currency: 'DZD',
-        });
-      }
+      fpixel.event('ViewContent', {
+        content_name: productRow.name,
+        content_ids: [productRow.id],
+        content_type: 'product',
+        value: Number(productRow.price),
+        currency: 'DZD',
+      });
 
       // Google Analytics 4 — product_view
       if (typeof gtag !== 'undefined') {

@@ -11,6 +11,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { OrderNowButton } from "@/components/OrderNowButton";
+import { FacebookPixel } from "@/components/FacebookPixel";
 import Home from "./pages/Home";
 import ProductDetail from "./pages/ProductDetail";
 import Contact from "./pages/Contact";
@@ -47,6 +48,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <FacebookPixel />
           <a href="#main-content" className="skip-link">
             تجاوز إلى المحتوى الرئيسي
           </a>

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
+import * as fpixel from "@/lib/fpixel";
 
 const ThankYou = () => {
   const navigate = useNavigate();
@@ -20,14 +21,12 @@ const ThankYou = () => {
     // Event Tracking
     if (orderData) {
       // Facebook Pixel — Purchase
-      if (typeof fbq !== 'undefined') {
-        fbq('track', 'Purchase', {
-          value: orderData.totalPrice,
-          currency: 'DZD',
-          content_ids: [orderData.productId || orderData.productName],
-          content_type: 'product'
-        });
-      }
+      fpixel.event('Purchase', {
+        value: orderData.totalPrice,
+        currency: 'DZD',
+        content_ids: [orderData.productId || orderData.productName],
+        content_type: 'product'
+      });
 
       // Google Analytics 4 — purchase
       if (typeof gtag !== 'undefined') {

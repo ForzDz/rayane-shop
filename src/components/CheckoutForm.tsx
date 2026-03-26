@@ -13,6 +13,7 @@ import { googleSheetsService } from "@/services/googlesheets.service";
 import { supabase } from "@/lib/supabaseClient";
 import { generatePublicOrderId } from "@/lib/orderId";
 import type { CommandeData } from "@/types/zrexpress.types";
+import * as fpixel from "@/lib/fpixel";
 
 interface CheckoutFormProps {
   product: Product;
@@ -65,12 +66,19 @@ export const CheckoutForm = ({ product }: CheckoutFormProps) => {
       checkoutTracked.current = true;
       
       // Facebook Pixel — InitiateCheckout
-      if (typeof fbq !== 'undefined') {
-        fbq('track', 'InitiateCheckout', {
-          value: totalPrice,
-          currency: 'DZD',
-        });
-      }
+      fpixel.event('InitiateCheckout', {
+        value: totalPrice,
+        currency: 'DZD',
+      });
+
+      // Facebook Pixel — AddToCart (Fires on form interaction)
+      fpixel.event('AddToCart', {
+        content_id: (product as any).id || product.name,
+        content_name: product.name,
+        content_type: 'product',
+        value: product.price,
+        currency: 'DZD',
+      });
 
       // Google Analytics 4 — begin_checkout
       if (typeof gtag !== 'undefined') {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import * as fpixel from "@/lib/fpixel";
 
 export const OrderNowButton = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -29,6 +30,12 @@ export const OrderNowButton = () => {
   const scrollToForm = () => {
     const formElement = document.getElementById('order-form');
     if (formElement) {
+      // Facebook Pixel — AddToCart
+      fpixel.event('AddToCart', {
+        content_name: 'Floating Order Button',
+        content_type: 'product',
+      });
+
       formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
